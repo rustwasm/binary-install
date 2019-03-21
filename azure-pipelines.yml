@@ -1,0 +1,30 @@
+trigger:
+  branches:
+    include:
+      - refs/heads/master
+      - refs/tags/*
+
+jobs:
+  - job: test_binary_install
+    displayName: "Run binary-install crate tests (unix)"
+    steps:
+      - template: ci/azure-install-rust.yml
+      - script: cargo test
+        displayName: "binary-install test suite"
+
+  - job: test_binary_install_windows
+    displayName: "Run binary-install crate tests (Windows)"
+    pool:
+      vmImage: vs2017-win2016
+    steps:
+      - template: ci/azure-install-rust.yml
+      - script: cargo test
+        displayName: "binary-install test suite"
+        
+  - job: test_binary_install_nightly
+    displayName: "Run binary-install crate tests (nightly)"
+    steps:
+      - template: ci/azure-install-rust.yml
+        parameters:
+          toolchain: nightly
+      - script: cargo test
