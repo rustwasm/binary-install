@@ -122,6 +122,59 @@ impl Cache {
         Ok(Some(Download { root: destination }))
     }
 
+    /// Downloads a tarball from the specified url, extracting it locally and
+    /// returning the directory that the contents were extracted into.
+    ///
+    /// Similar to download; use this function for languages that doesn't emit a
+    /// binary.
+    pub fn download_artifact(&self, name: &str, url: &str) -> Result<Option<Download>, Error> {
+        let dirname = hashed_dirname(url, name);
+        let destination = self.destination.join(&dirname);
+
+        if destination.exists() {
+            return Ok(Some(Download { root: destination }));
+        }
+
+        let data = curl(&url).with_context(|_| format!("failed to download from {}", url))?;
+
+        // Extract everything in a temporary directory in case we're ctrl-c'd.
+        // Don't want to leave around corrupted data!
+        let temp = self.destination.join(&format!(".{}", dirname));
+        drop(fs::remove_dir_all(&temp));
+        fs::create_dir_all(&temp)?;
+
+        if url.ends_with(".tar.gz") {
+            self.extract_tarball_all(&data, &temp)
+                .with_context(|_| format!("failed to extract tarball from {}", url))?;
+        } else {
+            // panic instead of runtime error as it's a static violation to
+            // download a different kind of url, all urls should be encoded into
+            // the binary anyway
+            panic!("don't know how to extract {}", url)
+        }
+
+        // Now that everything is ready move this over to our destination and
+        // we're good to go.
+        fs::rename(&temp, &destination)?;
+        Ok(Some(Download { root: destination }))
+    }
+
+    /// simiar to extract_tarball, but preserves all the archive's content.
+    fn extract_tarball_all(&self, tarball: &[u8], dst: &Path) -> Result<(), Error> {
+        let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(tarball));
+
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            let dest = match entry.path()?.file_stem() {
+                Some(_) => dst.join(entry.path()?.file_name().unwrap()),
+                _ => continue,
+            };
+            entry.unpack(dest)?;
+        }
+
+        Ok(())
+    }
+
     fn extract_tarball(&self, tarball: &[u8], dst: &Path, binaries: &[&str]) -> Result<(), Error> {
         let mut binaries: HashSet<_> = binaries.into_iter().map(ffi::OsStr::new).collect();
         let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(tarball));
@@ -230,6 +283,11 @@ impl Download {
         }
 
         Ok(ret)
+    }
+
+    /// Returns the path to the root
+    pub fn path(&self) -> PathBuf {
+        self.root.clone()
     }
 }
 
