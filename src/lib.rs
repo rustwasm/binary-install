@@ -5,6 +5,7 @@ extern crate curl;
 extern crate failure;
 extern crate dirs;
 extern crate flate2;
+extern crate fs2;
 extern crate hex;
 extern crate is_executable;
 extern crate siphasher;
@@ -12,11 +13,13 @@ extern crate tar;
 extern crate zip;
 
 use failure::{Error, ResultExt};
+use fs2::FileExt;
 use siphasher::sip::SipHasher13;
 use std::collections::HashSet;
 use std::env;
 use std::ffi;
 use std::fs;
+use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -48,6 +51,9 @@ impl Cache {
                 Some(home.join(&cache_name))
             })
             .ok_or_else(|| format_err!("couldn't find your home directory, is $HOME not set?"))?;
+        if !destination.exists() {
+            fs::create_dir_all(&destination)?;
+        }
         Ok(Cache::at(&destination))
     }
 
@@ -87,6 +93,9 @@ impl Cache {
 
         let destination = self.destination.join(&dirname);
 
+        let flock = File::create(self.destination.join(&format!(".{}.lock", dirname)))?;
+        flock.lock_exclusive()?;
+
         if destination.exists() {
             return Ok(Some(Download { root: destination }));
         }
@@ -119,6 +128,8 @@ impl Cache {
         // Now that everything is ready move this over to our destination and
         // we're good to go.
         fs::rename(&temp, &destination)?;
+
+        flock.unlock()?;
         Ok(Some(Download { root: destination }))
     }
 
