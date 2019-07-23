@@ -32,7 +32,7 @@ pub struct Cache {
 }
 
 /// Representation of a downloaded tarball/zip
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Download {
     root: PathBuf,
 }
