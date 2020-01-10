@@ -41,7 +41,7 @@ fn it_downloads_tarball() {
         true,
         binary_name,
         &binaries,
-        &format!("{}/{}.tar.gz", &url, binary_name),
+        &format!("{}/{}/.tar.gz", &url, binary_name),
     );
 
     assert!(dl.is_ok());
