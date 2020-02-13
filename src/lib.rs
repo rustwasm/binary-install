@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 /// urls like wasm-bindgen and such.
 #[derive(Debug)]
 pub struct Cache {
-    destination: PathBuf,
+    pub destination: PathBuf,
 }
 
 /// Representation of a downloaded tarball/zip
@@ -71,6 +71,29 @@ impl Cache {
     }
 
     /// Downloads a tarball or zip file from the specified url, extracting it
+    /// to a directory with the version number and returning the directory that
+    /// the contents were extracted into.
+    ///
+    /// Note that this function requries that the contents of `url` never change
+    /// as the contents of the url are globally cached on the system and never
+    /// invalidated.
+    ///
+    /// The `name` is a human-readable name used to go into the folder name of
+    /// the destination, and `binaries` is a list of binaries expected to be at
+    /// the url. If the URL's extraction doesn't contain all the binaries this
+    /// function will return an error.
+    pub fn download_version(
+        &self,
+        install_permitted: bool,
+        name: &str,
+        binaries: &[&str],
+        url: &str,
+        version: &str,
+    ) -> Result<Option<Download>, Error> {
+        self._download(install_permitted, name, binaries, url, Some(version))
+    }
+
+    /// Downloads a tarball or zip file from the specified url, extracting it
     /// locally and returning the directory that the contents were extracted
     /// into.
     ///
@@ -89,7 +112,21 @@ impl Cache {
         binaries: &[&str],
         url: &str,
     ) -> Result<Option<Download>, Error> {
-        let dirname = hashed_dirname(url, name);
+        self._download(install_permitted, name, binaries, url, None)
+    }
+
+    fn _download(
+        &self,
+        install_permitted: bool,
+        name: &str,
+        binaries: &[&str],
+        url: &str,
+        version: Option<&str>,
+    ) -> Result<Option<Download>, Error> {
+        let dirname = match version {
+            Some(version) => get_dirname(name, version),
+            None => hashed_dirname(url, name),
+        };
 
         let destination = self.destination.join(&dirname);
 
@@ -139,7 +176,33 @@ impl Cache {
     /// Similar to download; use this function for languages that doesn't emit a
     /// binary.
     pub fn download_artifact(&self, name: &str, url: &str) -> Result<Option<Download>, Error> {
-        let dirname = hashed_dirname(url, name);
+        self._download_artifact(name, url, None)
+    }
+
+    /// Downloads a tarball from the specified url, extracting it locally and
+    /// returning the directory that the contents were extracted into.
+    ///
+    /// Similar to download; use this function for languages that doesn't emit a
+    /// binary.
+    pub fn download_artifact_version(
+        &self,
+        name: &str,
+        url: &str,
+        version: &str,
+    ) -> Result<Option<Download>, Error> {
+        self._download_artifact(name, url, Some(version))
+    }
+
+    fn _download_artifact(
+        &self,
+        name: &str,
+        url: &str,
+        version: Option<&str>,
+    ) -> Result<Option<Download>, Error> {
+        let dirname = match version {
+            Some(version) => get_dirname(name, version),
+            None => hashed_dirname(url, name),
+        };
         let destination = self.destination.join(&dirname);
 
         if destination.exists() {
@@ -150,7 +213,7 @@ impl Cache {
 
         // Extract everything in a temporary directory in case we're ctrl-c'd.
         // Don't want to leave around corrupted data!
-        let temp = self.destination.join(&format!(".{}", dirname));
+        let temp = self.destination.join(&format!(".{}", &dirname));
         drop(fs::remove_dir_all(&temp));
         fs::create_dir_all(&temp)?;
 
@@ -330,6 +393,10 @@ fn curl(url: &str) -> Result<Vec<u8>, Error> {
     }
 }
 
+fn get_dirname(name: &str, suffix: &str) -> String {
+    format!("{}-{}", name, suffix)
+}
+
 fn hashed_dirname(url: &str, name: &str) -> String {
     let mut hasher = SipHasher13::new();
     url.hash(&mut hasher);
@@ -377,6 +444,31 @@ mod tests {
     }
 
     #[test]
+    fn it_returns_same_dirname_for_same_name_and_version() {
+        let name = "wasm-pack";
+        let version = "0.6.0";
+
+        let first = get_dirname(name, version);
+        let second = get_dirname(name, version);
+
+        assert!(!first.is_empty());
+        assert!(!second.is_empty());
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn it_returns_different_dirnames_for_different_versions() {
+        let name = "wasm-pack";
+        let version = "0.5.1";
+        let second_version = "0.6.0";
+
+        let first = get_dirname(name, version);
+        let second = get_dirname(name, second_version);
+
+        assert_ne!(first, second);
+    }
+
+    #[test]
     fn it_returns_cache_dir() {
         let name = "wasm-pack";
         let cache = Cache::new(name);
@@ -398,16 +490,20 @@ mod tests {
 
         let dir = tempfile::TempDir::new().unwrap();
         let cache = Cache::at(dir.path());
-        let url = &format!("{}/{}.tar.gz", "http://localhost:7878", binary_name);
+        let version = "0.6.0";
+        let url = &format!(
+            "{}/{}/v{}.tar.gz",
+            "http://localhost:7878", binary_name, version
+        );
 
-        let dirname = hashed_dirname(&url, &binary_name);
+        let dirname = get_dirname(&binary_name, &version);
         let full_path = dir.path().join(dirname);
 
         // Create temporary directory and binary to simulate that
         // a cached binary already exists.
         fs::create_dir_all(full_path).unwrap();
 
-        let dl = cache.download(true, binary_name, &binaries, url);
+        let dl = cache.download_version(true, binary_name, &binaries, url, version);
 
         assert!(dl.is_ok());
         assert!(dl.unwrap().is_some())
