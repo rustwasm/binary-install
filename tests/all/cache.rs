@@ -1,6 +1,6 @@
+use super::utils;
 use binary_install::Cache;
 use std::path::Path;
-use utils;
 
 #[test]
 fn it_returns_none_if_install_is_not_permitted() {
