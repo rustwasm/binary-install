@@ -1,16 +1,7 @@
 //! Utilities for finding and installing binaries that we depend on.
 
-extern crate curl;
 #[macro_use]
 extern crate failure;
-extern crate dirs;
-extern crate flate2;
-extern crate fs2;
-extern crate hex;
-extern crate is_executable;
-extern crate siphasher;
-extern crate tar;
-extern crate zip;
 
 use failure::{Error, ResultExt};
 use fs2::FileExt;
