@@ -1,9 +1,6 @@
 //! Utilities for finding and installing binaries that we depend on.
 
-#[macro_use]
-extern crate failure;
-
-use failure::{Error, ResultExt};
+use anyhow::{anyhow, bail, Context, Result};
 use fs2::FileExt;
 use siphasher::sip::SipHasher13;
 use std::collections::HashSet;
@@ -33,7 +30,7 @@ impl Cache {
     ///
     /// This function may return an error if a cache directory cannot be
     /// determined.
-    pub fn new(name: &str) -> Result<Cache, Error> {
+    pub fn new(name: &str) -> Result<Cache> {
         let cache_name = format!(".{}", name);
         let destination = dirs::cache_dir()
             .map(|p| p.join(&cache_name))
@@ -41,7 +38,7 @@ impl Cache {
                 let home = dirs::home_dir()?;
                 Some(home.join(&cache_name))
             })
-            .ok_or_else(|| format_err!("couldn't find your home directory, is $HOME not set?"))?;
+            .ok_or_else(|| anyhow!("couldn't find your home directory, is $HOME not set?"))?;
         if !destination.exists() {
             fs::create_dir_all(&destination)?;
         }
@@ -80,7 +77,7 @@ impl Cache {
         binaries: &[&str],
         url: &str,
         version: &str,
-    ) -> Result<Option<Download>, Error> {
+    ) -> Result<Option<Download>> {
         self._download(install_permitted, name, binaries, url, Some(version))
     }
 
@@ -102,7 +99,7 @@ impl Cache {
         name: &str,
         binaries: &[&str],
         url: &str,
-    ) -> Result<Option<Download>, Error> {
+    ) -> Result<Option<Download>> {
         self._download(install_permitted, name, binaries, url, None)
     }
 
@@ -113,7 +110,7 @@ impl Cache {
         binaries: &[&str],
         url: &str,
         version: Option<&str>,
-    ) -> Result<Option<Download>, Error> {
+    ) -> Result<Option<Download>> {
         let dirname = match version {
             Some(version) => get_dirname(name, version),
             None => hashed_dirname(url, name),
@@ -132,7 +129,7 @@ impl Cache {
             return Ok(None);
         }
 
-        let data = curl(&url).with_context(|_| format!("failed to download from {}", url))?;
+        let data = curl(&url).with_context(|| format!("failed to download from {}", url))?;
 
         // Extract everything in a temporary directory in case we're ctrl-c'd.
         // Don't want to leave around corrupted data!
@@ -142,10 +139,10 @@ impl Cache {
 
         if url.ends_with(".tar.gz") {
             self.extract_tarball(&data, &temp, binaries)
-                .with_context(|_| format!("failed to extract tarball from {}", url))?;
+                .with_context(|| format!("failed to extract tarball from {}", url))?;
         } else if url.ends_with(".zip") {
             self.extract_zip(&data, &temp, binaries)
-                .with_context(|_| format!("failed to extract zip from {}", url))?;
+                .with_context(|| format!("failed to extract zip from {}", url))?;
         } else {
             // panic instead of runtime error as it's a static violation to
             // download a different kind of url, all urls should be encoded into
@@ -166,7 +163,7 @@ impl Cache {
     ///
     /// Similar to download; use this function for languages that doesn't emit a
     /// binary.
-    pub fn download_artifact(&self, name: &str, url: &str) -> Result<Option<Download>, Error> {
+    pub fn download_artifact(&self, name: &str, url: &str) -> Result<Option<Download>> {
         self._download_artifact(name, url, None)
     }
 
@@ -180,7 +177,7 @@ impl Cache {
         name: &str,
         url: &str,
         version: &str,
-    ) -> Result<Option<Download>, Error> {
+    ) -> Result<Option<Download>> {
         self._download_artifact(name, url, Some(version))
     }
 
@@ -189,7 +186,7 @@ impl Cache {
         name: &str,
         url: &str,
         version: Option<&str>,
-    ) -> Result<Option<Download>, Error> {
+    ) -> Result<Option<Download>> {
         let dirname = match version {
             Some(version) => get_dirname(name, version),
             None => hashed_dirname(url, name),
@@ -200,7 +197,7 @@ impl Cache {
             return Ok(Some(Download { root: destination }));
         }
 
-        let data = curl(&url).with_context(|_| format!("failed to download from {}", url))?;
+        let data = curl(&url).with_context(|| format!("failed to download from {}", url))?;
 
         // Extract everything in a temporary directory in case we're ctrl-c'd.
         // Don't want to leave around corrupted data!
@@ -210,7 +207,7 @@ impl Cache {
 
         if url.ends_with(".tar.gz") {
             self.extract_tarball_all(&data, &temp)
-                .with_context(|_| format!("failed to extract tarball from {}", url))?;
+                .with_context(|| format!("failed to extract tarball from {}", url))?;
         } else {
             // panic instead of runtime error as it's a static violation to
             // download a different kind of url, all urls should be encoded into
@@ -225,7 +222,7 @@ impl Cache {
     }
 
     /// simiar to extract_tarball, but preserves all the archive's content.
-    fn extract_tarball_all(&self, tarball: &[u8], dst: &Path) -> Result<(), Error> {
+    fn extract_tarball_all(&self, tarball: &[u8], dst: &Path) -> Result<()> {
         let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(tarball));
 
         for entry in archive.entries()? {
@@ -240,7 +237,7 @@ impl Cache {
         Ok(())
     }
 
-    fn extract_tarball(&self, tarball: &[u8], dst: &Path, binaries: &[&str]) -> Result<(), Error> {
+    fn extract_tarball(&self, tarball: &[u8], dst: &Path, binaries: &[&str]) -> Result<()> {
         let mut binaries: HashSet<_> = binaries.into_iter().map(ffi::OsStr::new).collect();
         let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(tarball));
 
@@ -272,7 +269,7 @@ impl Cache {
         Ok(())
     }
 
-    fn extract_zip(&self, zip: &[u8], dst: &Path, binaries: &[&str]) -> Result<(), Error> {
+    fn extract_zip(&self, zip: &[u8], dst: &Path, binaries: &[&str]) -> Result<()> {
         let mut binaries: HashSet<_> = binaries.into_iter().map(ffi::OsStr::new).collect();
 
         let data = io::Cursor::new(zip);
@@ -332,7 +329,7 @@ impl Download {
     }
 
     /// Returns the path to the binary `name` within this download
-    pub fn binary(&self, name: &str) -> Result<PathBuf, Error> {
+    pub fn binary(&self, name: &str) -> Result<PathBuf> {
         use is_executable::IsExecutable;
 
         let ret = self
@@ -356,7 +353,7 @@ impl Download {
     }
 }
 
-fn curl(url: &str) -> Result<Vec<u8>, Error> {
+fn curl(url: &str) -> Result<Vec<u8>> {
     let mut data = Vec::new();
 
     let mut easy = curl::easy::Easy::new();
