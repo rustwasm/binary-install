@@ -37,23 +37,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b41b7ea54a0c9d92199de89e20e58d49f02f8e699814ef3fdf266f6f748d15c7"
 
 [[package]]
-name = "binary-install"
-version = "0.0.3-alpha.1"
-dependencies = [
- "anyhow",
- "curl",
- "dirs",
- "flate2",
- "fs2",
- "hex",
- "is_executable",
- "siphasher",
- "tar",
- "tempfile",
- "zip",
-]
-
-[[package]]
 name = "blake2b_simd"
 version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -381,6 +364,23 @@ dependencies = [
  "blake2b_simd",
  "constant_time_eq",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "rust-binary-install"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "curl",
+ "dirs",
+ "flate2",
+ "fs2",
+ "hex",
+ "is_executable",
+ "siphasher",
+ "tar",
+ "tempfile",
+ "zip",
 ]
 
 [[package]]

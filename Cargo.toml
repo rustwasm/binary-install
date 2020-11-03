@@ -1,11 +1,10 @@
 [package]
-name = "binary-install"
+name = "rust-binary-install"
 description = "Install a binary from a path to a global cache"
-authors = ["Rust and WebAssembly Working Group"]
-repository = "https://github.com/rustwasm/binary-install"
+authors = ["Cloudflare"]
+repository = "https://github.com/cloudflare/rust-binary-install"
 license = "MIT/Apache-2.0"
-version = "0.0.3-alpha.1"
-documentation = "https://docs.rs/binary-install"
+version = "0.0.1"
 readme = "./README.md"
 edition = "2018"
 
