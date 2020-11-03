@@ -1,6 +1,6 @@
 //! Utilities for finding and installing binaries that we depend on.
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use fs2::FileExt;
 use siphasher::sip::SipHasher13;
 use std::collections::HashSet;
@@ -129,7 +129,7 @@ impl Cache {
             return Ok(None);
         }
 
-        let data = curl(&url)?;
+        let data = curl(&url).with_context(|| format!("failed to download from {}", url))?;
 
         // Extract everything in a temporary directory in case we're ctrl-c'd.
         // Don't want to leave around corrupted data!
@@ -138,9 +138,11 @@ impl Cache {
         fs::create_dir_all(&temp)?;
 
         if url.ends_with(".tar.gz") {
-            self.extract_tarball(&data, &temp, binaries)?;
+            self.extract_tarball(&data, &temp, binaries)
+                .with_context(|| format!("failed to extract tarball from {}", url))?;
         } else if url.ends_with(".zip") {
-            self.extract_zip(&data, &temp, binaries)?;
+            self.extract_zip(&data, &temp, binaries)
+                .with_context(|| format!("failed to extract zip from {}", url))?;
         } else {
             // panic instead of runtime error as it's a static violation to
             // download a different kind of url, all urls should be encoded into
@@ -199,7 +201,7 @@ impl Cache {
             return Ok(Some(Download { root: destination }));
         }
 
-        let data = curl(&url)?;
+        let data = curl(&url).with_context(|| format!("failed to download from {}", url))?;
 
         // Extract everything in a temporary directory in case we're ctrl-c'd.
         // Don't want to leave around corrupted data!
@@ -208,7 +210,8 @@ impl Cache {
         fs::create_dir_all(&temp)?;
 
         if url.ends_with(".tar.gz") {
-            self.extract_tarball_all(&data, &temp)?;
+            self.extract_tarball_all(&data, &temp)
+                .with_context(|| format!("failed to extract tarball from {}", url))?;
         } else {
             // panic instead of runtime error as it's a static violation to
             // download a different kind of url, all urls should be encoded into

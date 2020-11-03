@@ -1,5 +1,5 @@
 use super::utils;
-use binary_install::Cache;
+use rust_binary_install::Cache;
 use std::path::Path;
 
 #[test]

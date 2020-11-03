@@ -1,4 +1,4 @@
-use binary_install::Download;
+use rust_binary_install::Download;
 use std::fs::OpenOptions;
 
 #[test]

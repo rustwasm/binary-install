@@ -1,5 +1,5 @@
-extern crate binary_install;
 extern crate flate2;
+extern crate rust_binary_install;
 extern crate tar;
 
 mod cache;
