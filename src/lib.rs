@@ -32,10 +32,10 @@ impl Cache {
     /// determined.
     pub fn new(name: &str) -> Result<Cache> {
         let cache_name = format!(".{}", name);
-        let destination = dirs::cache_dir()
+        let destination = dirs_next::cache_dir()
             .map(|p| p.join(&cache_name))
             .or_else(|| {
-                let home = dirs::home_dir()?;
+                let home = dirs_next::home_dir()?;
                 Some(home.join(&cache_name))
             })
             .ok_or_else(|| anyhow!("couldn't find your home directory, is $HOME not set?"))?;
@@ -461,7 +461,7 @@ mod tests {
         let name = "wasm-pack";
         let cache = Cache::new(name);
 
-        let expected = dirs::cache_dir()
+        let expected = dirs_next::cache_dir()
             .unwrap()
             .join(PathBuf::from(".".to_owned() + name));
 

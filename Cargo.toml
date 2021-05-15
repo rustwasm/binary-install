@@ -12,7 +12,7 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0"
 curl = "0.4"
-dirs = "2.0"
+dirs-next = "2.0.0"
 flate2 = "1.0"
 fs2 = "0.4"
 hex = "0.4"
