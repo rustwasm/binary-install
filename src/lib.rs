@@ -277,7 +277,10 @@ impl Cache {
 
         for i in 0..zip.len() {
             let mut entry = zip.by_index(i).unwrap();
-            let entry_path = entry.sanitized_name();
+            let entry_path = match entry.enclosed_name() {
+                Some(path) => path,
+                None => continue,
+            };
             match entry_path.file_stem() {
                 Some(f) if binaries.contains(f) => {
                     binaries.remove(f);
