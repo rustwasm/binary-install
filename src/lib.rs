@@ -5,7 +5,6 @@ use fs2::FileExt;
 use siphasher::sip::SipHasher13;
 use std::collections::HashSet;
 use std::env;
-use std::ffi;
 use std::fs;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
@@ -238,16 +237,18 @@ impl Cache {
     }
 
     fn extract_tarball(&self, tarball: &[u8], dst: &Path, binaries: &[&str]) -> Result<()> {
-        let mut binaries: HashSet<_> = binaries.into_iter().map(ffi::OsStr::new).collect();
+        let mut binaries: HashSet<_> = binaries.iter().copied().collect();
         let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(tarball));
 
         for entry in archive.entries()? {
             let mut entry = entry?;
 
-            let dest = match self.extract_binary(entry.path()?.as_ref(), dst, &mut binaries) {
+            let dest = match self.extract_binary(&entry.path()?, dst, &mut binaries) {
                 Some(dest) => dest,
                 _ => continue,
             };
+
+            fs::create_dir_all(dest.parent().unwrap())?;
 
             entry.unpack(dest)?;
         }
@@ -256,8 +257,8 @@ impl Cache {
             bail!(
                 "the tarball was missing expected executables: {}",
                 binaries
-                    .into_iter()
-                    .map(|s| s.to_string_lossy())
+                    .iter()
+                    .map(|s| s.to_string())
                     .collect::<Vec<_>>()
                     .join(", "),
             )
@@ -267,7 +268,7 @@ impl Cache {
     }
 
     fn extract_zip(&self, zip: &[u8], dst: &Path, binaries: &[&str]) -> Result<()> {
-        let mut binaries: HashSet<_> = binaries.into_iter().map(ffi::OsStr::new).collect();
+        let mut binaries: HashSet<_> = binaries.iter().copied().collect();
 
         let data = io::Cursor::new(zip);
         let mut zip = zip::ZipArchive::new(data)?;
@@ -284,6 +285,8 @@ impl Cache {
                 _ => continue,
             };
 
+            fs::create_dir_all(dest.parent().unwrap())?;
+
             let mut dest = bin_open_options().write(true).create_new(true).open(dest)?;
             io::copy(&mut entry, &mut dest)?;
         }
@@ -292,8 +295,8 @@ impl Cache {
             bail!(
                 "the zip was missing expected executables: {}",
                 binaries
-                    .into_iter()
-                    .map(|s| s.to_string_lossy())
+                    .iter()
+                    .map(|s| s.to_string())
                     .collect::<Vec<_>>()
                     .join(", "),
             )
@@ -325,15 +328,20 @@ impl Cache {
         &self,
         entry_path: &Path,
         dst: &Path,
-        binaries: &mut HashSet<&ffi::OsStr>,
+        binaries: &mut HashSet<&str>,
     ) -> Option<PathBuf> {
         let file_stem = entry_path.file_stem()?;
-        if binaries.contains(file_stem) {
-            binaries.remove(file_stem);
-            Some(dst.join(entry_path.file_name()?))
-        } else {
-            None
+
+        for &binary in binaries.iter() {
+            if binary == file_stem {
+                binaries.remove(binary);
+                return Some(dst.join(entry_path.file_name()?));
+            } else if binary.contains('/') && entry_path.ends_with(binary) {
+                binaries.remove(binary);
+                return Some(dst.join(binary));
+            }
         }
+        None
     }
 }
 
