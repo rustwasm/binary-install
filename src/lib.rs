@@ -244,11 +244,8 @@ impl Cache {
         for entry in archive.entries()? {
             let mut entry = entry?;
 
-            let dest = match entry.path()?.file_stem() {
-                Some(f) if binaries.contains(f) => {
-                    binaries.remove(f);
-                    dst.join(entry.path()?.file_name().unwrap())
-                }
+            let dest = match self.extract_binary(entry.path()?.as_ref(), dst, &mut binaries) {
+                Some(dest) => dest,
                 _ => continue,
             };
 
@@ -281,17 +278,14 @@ impl Cache {
                 Some(path) => path,
                 None => continue,
             };
-            match entry_path.file_stem() {
-                Some(f) if binaries.contains(f) => {
-                    binaries.remove(f);
-                    let mut dest = bin_open_options()
-                        .write(true)
-                        .create_new(true)
-                        .open(dst.join(entry_path.file_name().unwrap()))?;
-                    io::copy(&mut entry, &mut dest)?;
-                }
+
+            let dest = match self.extract_binary(entry_path, dst, &mut binaries) {
+                Some(dest) => dest,
                 _ => continue,
             };
+
+            let mut dest = bin_open_options().write(true).create_new(true).open(dest)?;
+            io::copy(&mut entry, &mut dest)?;
         }
 
         if !binaries.is_empty() {
@@ -319,6 +313,26 @@ impl Cache {
         #[cfg(not(unix))]
         fn bin_open_options() -> fs::OpenOptions {
             fs::OpenOptions::new()
+        }
+    }
+
+    /// Works out whether or not to extract a given file from an archive.
+    ///
+    /// If a file should be extracted, this function removes its corresponding
+    /// entry from `binaries`, and returns the destination path where the file should be
+    /// extracted to.
+    fn extract_binary(
+        &self,
+        entry_path: &Path,
+        dst: &Path,
+        binaries: &mut HashSet<&ffi::OsStr>,
+    ) -> Option<PathBuf> {
+        let file_stem = entry_path.file_stem()?;
+        if binaries.contains(file_stem) {
+            binaries.remove(file_stem);
+            Some(dst.join(entry_path.file_name()?))
+        } else {
+            None
         }
     }
 }
