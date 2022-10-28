@@ -248,7 +248,11 @@ impl Cache {
                 _ => continue,
             };
 
-            fs::create_dir_all(dest.parent().unwrap())?;
+            fs::create_dir_all(
+                dest.parent().ok_or_else(|| {
+                    anyhow!("could not get parent directory of {}", dest.display())
+                })?,
+            )?;
 
             entry.unpack(dest)?;
         }
@@ -285,7 +289,11 @@ impl Cache {
                 _ => continue,
             };
 
-            fs::create_dir_all(dest.parent().unwrap())?;
+            fs::create_dir_all(
+                dest.parent().ok_or_else(|| {
+                    anyhow!("could not get parent directory of {}", dest.display())
+                })?,
+            )?;
 
             let mut dest = bin_open_options().write(true).create_new(true).open(dest)?;
             io::copy(&mut entry, &mut dest)?;
