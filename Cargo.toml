@@ -19,7 +19,7 @@ hex = "0.4"
 is_executable = "0.1"
 siphasher = "0.3"
 tar = "0.4"
-zip = "0.5"
+zip = "0.6"
 
 [dev-dependencies]
 tempfile = "3.1"
