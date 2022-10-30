@@ -7,6 +7,8 @@ trigger:
 jobs:
   - job: test_binary_install
     displayName: "Run binary-install crate tests (unix)"
+    pool:
+      vmImage: ubuntu-latest
     steps:
       - template: ci/azure-install-rust.yml
       - script: cargo test
@@ -15,7 +17,7 @@ jobs:
   - job: test_binary_install_windows
     displayName: "Run binary-install crate tests (Windows)"
     pool:
-      vmImage: vs2017-win2016
+      vmImage: windows-latest
     steps:
       - template: ci/azure-install-rust.yml
       - script: cargo test
@@ -23,6 +25,8 @@ jobs:
         
   - job: test_binary_install_nightly
     displayName: "Run binary-install crate tests (nightly)"
+    pool:
+      vmImage: ubuntu-latest
     steps:
       - template: ci/azure-install-rust.yml
         parameters:

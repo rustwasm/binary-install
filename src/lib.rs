@@ -5,7 +5,6 @@ use fs2::FileExt;
 use siphasher::sip::SipHasher13;
 use std::collections::HashSet;
 use std::env;
-use std::ffi;
 use std::fs;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
@@ -238,19 +237,22 @@ impl Cache {
     }
 
     fn extract_tarball(&self, tarball: &[u8], dst: &Path, binaries: &[&str]) -> Result<()> {
-        let mut binaries: HashSet<_> = binaries.into_iter().map(ffi::OsStr::new).collect();
+        let mut binaries: HashSet<_> = binaries.iter().copied().collect();
         let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(tarball));
 
         for entry in archive.entries()? {
             let mut entry = entry?;
 
-            let dest = match entry.path()?.file_stem() {
-                Some(f) if binaries.contains(f) => {
-                    binaries.remove(f);
-                    dst.join(entry.path()?.file_name().unwrap())
-                }
+            let dest = match self.extract_binary(&entry.path()?, dst, &mut binaries) {
+                Some(dest) => dest,
                 _ => continue,
             };
+
+            fs::create_dir_all(
+                dest.parent().ok_or_else(|| {
+                    anyhow!("could not get parent directory of {}", dest.display())
+                })?,
+            )?;
 
             entry.unpack(dest)?;
         }
@@ -259,8 +261,8 @@ impl Cache {
             bail!(
                 "the tarball was missing expected executables: {}",
                 binaries
-                    .into_iter()
-                    .map(|s| s.to_string_lossy())
+                    .iter()
+                    .map(|s| s.to_string())
                     .collect::<Vec<_>>()
                     .join(", "),
             )
@@ -270,33 +272,39 @@ impl Cache {
     }
 
     fn extract_zip(&self, zip: &[u8], dst: &Path, binaries: &[&str]) -> Result<()> {
-        let mut binaries: HashSet<_> = binaries.into_iter().map(ffi::OsStr::new).collect();
+        let mut binaries: HashSet<_> = binaries.iter().copied().collect();
 
         let data = io::Cursor::new(zip);
         let mut zip = zip::ZipArchive::new(data)?;
 
         for i in 0..zip.len() {
             let mut entry = zip.by_index(i).unwrap();
-            let entry_path = entry.sanitized_name();
-            match entry_path.file_stem() {
-                Some(f) if binaries.contains(f) => {
-                    binaries.remove(f);
-                    let mut dest = bin_open_options()
-                        .write(true)
-                        .create_new(true)
-                        .open(dst.join(entry_path.file_name().unwrap()))?;
-                    io::copy(&mut entry, &mut dest)?;
-                }
+            let entry_path = match entry.enclosed_name() {
+                Some(path) => path,
+                None => continue,
+            };
+
+            let dest = match self.extract_binary(entry_path, dst, &mut binaries) {
+                Some(dest) => dest,
                 _ => continue,
             };
+
+            fs::create_dir_all(
+                dest.parent().ok_or_else(|| {
+                    anyhow!("could not get parent directory of {}", dest.display())
+                })?,
+            )?;
+
+            let mut dest = bin_open_options().write(true).create_new(true).open(dest)?;
+            io::copy(&mut entry, &mut dest)?;
         }
 
         if !binaries.is_empty() {
             bail!(
                 "the zip was missing expected executables: {}",
                 binaries
-                    .into_iter()
-                    .map(|s| s.to_string_lossy())
+                    .iter()
+                    .map(|s| s.to_string())
                     .collect::<Vec<_>>()
                     .join(", "),
             )
@@ -317,6 +325,31 @@ impl Cache {
         fn bin_open_options() -> fs::OpenOptions {
             fs::OpenOptions::new()
         }
+    }
+
+    /// Works out whether or not to extract a given file from an archive.
+    ///
+    /// If a file should be extracted, this function removes its corresponding
+    /// entry from `binaries`, and returns the destination path where the file should be
+    /// extracted to.
+    fn extract_binary(
+        &self,
+        entry_path: &Path,
+        dst: &Path,
+        binaries: &mut HashSet<&str>,
+    ) -> Option<PathBuf> {
+        let file_stem = entry_path.file_stem()?;
+
+        for &binary in binaries.iter() {
+            if binary == file_stem {
+                binaries.remove(binary);
+                return Some(dst.join(entry_path.file_name()?));
+            } else if binary.contains('/') && entry_path.ends_with(binary) {
+                binaries.remove(binary);
+                return Some(dst.join(binary));
+            }
+        }
+        None
     }
 }
 
