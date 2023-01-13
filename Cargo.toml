@@ -11,7 +11,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
-curl = "0.4"
+ureq = "2.6"
 dirs-next = "2.0.0"
 flate2 = "1.0"
 fs2 = "0.4"

@@ -128,7 +128,8 @@ impl Cache {
             return Ok(None);
         }
 
-        let data = curl(&url).with_context(|| format!("failed to download from {}", url))?;
+        let data =
+            download_binary(&url).with_context(|| format!("failed to download from {}", url))?;
 
         // Extract everything in a temporary directory in case we're ctrl-c'd.
         // Don't want to leave around corrupted data!
@@ -196,7 +197,8 @@ impl Cache {
             return Ok(Some(Download { root: destination }));
         }
 
-        let data = curl(&url).with_context(|| format!("failed to download from {}", url))?;
+        let data =
+            download_binary(&url).with_context(|| format!("failed to download from {}", url))?;
 
         // Extract everything in a temporary directory in case we're ctrl-c'd.
         // Don't want to leave around corrupted data!
@@ -386,25 +388,18 @@ impl Download {
     }
 }
 
-fn curl(url: &str) -> Result<Vec<u8>> {
-    let mut data = Vec::new();
+fn download_binary(url: &str) -> Result<Vec<u8>> {
+    let response = ureq::get(url).call()?;
+    // easy.follow_location(true)?;
 
-    let mut easy = curl::easy::Easy::new();
-    easy.follow_location(true)?;
-    easy.url(url)?;
-    easy.get(true)?;
-    {
-        let mut transfer = easy.transfer();
-        transfer.write_function(|part| {
-            data.extend_from_slice(part);
-            Ok(part.len())
-        })?;
-        transfer.perform()?;
-    }
+    let status_code = response.status();
 
-    let status_code = easy.response_code()?;
-    if 200 <= status_code && status_code < 300 {
-        Ok(data)
+    if (200..300).contains(&status_code) {
+        // note malicious server might exhaust our memory
+        let len: usize = response.header("Content-Length").unwrap().parse()?;
+        let mut bytes: Vec<u8> = Vec::with_capacity(len);
+        response.into_reader().read_to_end(&mut bytes)?;
+        Ok(bytes)
     } else {
         bail!(
             "received a bad HTTP status code ({}) when requesting {}",
