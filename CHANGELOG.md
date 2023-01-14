@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0
+
+### Features
+
+  - **Install to subdirs - [printfn], [pull/21]**
+
+  Adds the ability to extract binaries (and libraries) to specific subdirectories, which is needed for dynamic linking on macOS.
+ 
+  [printfn]: https://github.com/printfn
+  [pull/21]: https://github.com/rustwasm/binary-install/pull/21
+
 ## 🎸  0.0.3-alpha.1
 
 ### Features
