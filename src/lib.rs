@@ -390,13 +390,15 @@ impl Download {
 
 fn download_binary(url: &str) -> Result<Vec<u8>> {
     let response = ureq::get(url).call()?;
-    // easy.follow_location(true)?;
 
     let status_code = response.status();
 
     if (200..300).contains(&status_code) {
         // note malicious server might exhaust our memory
-        let len: usize = response.header("Content-Length").unwrap().parse()?;
+        let len: usize = response
+            .header("Content-Length")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0);
         let mut bytes: Vec<u8> = Vec::with_capacity(len);
         response.into_reader().read_to_end(&mut bytes)?;
         Ok(bytes)
