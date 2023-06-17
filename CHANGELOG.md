@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+
+### Fixes
+
+  - **Replace curl with ureq - [johanhelsing], [issue/23], [pull/24]**
+
+  [johanhelsing]: https://github.com/johanhelsing
+  [issue/23]:  https://github.com/rustwasm/binary-install/issue/23
+  [pull/24]: https://github.com/rustwasm/binary-install/pull/24
+
 ## 0.1.0
 
 ### Features
