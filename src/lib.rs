@@ -1,7 +1,7 @@
 //! Utilities for finding and installing binaries that we depend on.
 
 use anyhow::{anyhow, bail, Context, Result};
-use fs2::FileExt;
+use fs4::FileExt;
 use siphasher::sip::SipHasher13;
 use std::collections::HashSet;
 use std::env;
