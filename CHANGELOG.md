@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+### Fixes
+
+ - **Replace fs2 with fs4 - [BobBinaryBuilder], [pull/25]**
+
+  [BobBinaryBuilder]: https://github.com/BobBinaryBuilder
+  [pull/25]: https://github.com/rustwasm/binary-install/pull/25
+
 ## 0.2.0
 
 ### Fixes
