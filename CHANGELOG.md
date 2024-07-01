@@ -7,7 +7,7 @@
  - **Replace zip with zip_next - [Pr0methean], [pull/29]**
 
   [Pr0methean]: https://github.com/Pr0methean
-  [pull/28]: https://github.com/rustwasm/binary-install/pull/29
+  [pull/29]: https://github.com/rustwasm/binary-install/pull/29
 
 ## 0.3.0
 
