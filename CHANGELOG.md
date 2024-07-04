@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.1
+
+### Fixes
+
+ - **Update zip to 2.1.3 - [drager], [pull/33]**
+
+  [pull/33]: https://github.com/rustwasm/binary-install/pull/33
+
+ - **Revert: Replace zip with zip_next - [drager], [pull/32]**
+
+  [drager]: https://github.com/drager
+  [pull/32]: https://github.com/rustwasm/binary-install/pull/32
+
 ## 0.4.0
 
 ### Fixes
