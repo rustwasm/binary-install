@@ -277,7 +277,7 @@ impl Cache {
         let mut binaries: HashSet<_> = binaries.iter().copied().collect();
 
         let data = io::Cursor::new(zip);
-        let mut zip = zip_next::ZipArchive::new(data)?;
+        let mut zip = zip::ZipArchive::new(data)?;
 
         for i in 0..zip.len() {
             let mut entry = zip.by_index(i).unwrap();
@@ -286,7 +286,7 @@ impl Cache {
                 None => continue,
             };
 
-            let dest = match self.extract_binary(&entry_path, dst, &mut binaries) {
+            let dest = match self.extract_binary(entry_path, dst, &mut binaries) {
                 Some(dest) => dest,
                 _ => continue,
             };
