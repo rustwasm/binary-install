@@ -10,6 +10,8 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use ureq::Response;
 
 /// Global cache for wasm-pack, currently containing binaries downloaded from
 /// urls like wasm-bindgen and such.
@@ -389,7 +391,18 @@ impl Download {
 }
 
 fn download_binary(url: &str) -> Result<Vec<u8>> {
-    let response = ureq::get(url).call()?;
+    let use_native_tls = env::var("USE_NATIVE_TLS").ok();
+    let response: Response;
+
+    if use_native_tls.as_deref() == Some("1") {
+        response = ureq::AgentBuilder::new()
+            .tls_connector(Arc::new(native_tls::TlsConnector::new()?))
+            .build()
+            .get(url)
+            .call()?;
+    } else {
+        response = ureq::get(url).call()?;
+    }
 
     let status_code = response.status();
 

@@ -10,8 +10,8 @@ readme = "./README.md"
 edition = "2018"
 
 [dependencies]
-anyhow = "1.0"
-ureq = "2.6"
+anyhow = "1.0" 
+ureq = { version = "2.6", features = ["native-tls"] }
 dirs-next = "2.0.0"
 flate2 = "1.0"
 fs4 = "0.6.6"
@@ -20,6 +20,7 @@ is_executable = "0.1"
 siphasher = "0.3"
 tar = "0.4"
 zip_next = "1.0"
+native-tls = "0.2.12"
 
 [dev-dependencies]
 tempfile = "3.1"
