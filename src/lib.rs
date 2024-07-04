@@ -286,7 +286,7 @@ impl Cache {
                 None => continue,
             };
 
-            let dest = match self.extract_binary(entry_path, dst, &mut binaries) {
+            let dest = match self.extract_binary(&entry_path, dst, &mut binaries) {
                 Some(dest) => dest,
                 _ => continue,
             };
