@@ -389,7 +389,11 @@ impl Download {
 }
 
 fn download_binary(url: &str) -> Result<Vec<u8>> {
-    let response = ureq::get(url).call()?;
+    let response = ureq::builder()
+        .try_proxy_from_env(true)
+        .build()
+        .get(url)
+        .call()?;
 
     let status_code = response.status();
 
